@@ -9,6 +9,7 @@ import akka.actor.{ Actor, ActorLogging, Props }
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
+import akka.util.Timeout
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -29,6 +30,8 @@ object DBValueRegistryActor {
 
 class DBValueRegistryActor extends Actor with ActorLogging {
   import DBValueRegistryActor._
+
+  implicit lazy val timeout = Timeout(5.seconds)
 
   var countOfServers = 0
   var nodes = new scala.collection.mutable.HashMap[Int, ServerURI].withDefaultValue(null)
@@ -53,19 +56,24 @@ class DBValueRegistryActor extends Actor with ActorLogging {
   def receive: Receive = {
     case PutValue(id, value) =>
       Http().singleRequest(HttpRequest(method = HttpMethods.PUT, uri = nodes(sharding(id.toInt)).uri + "/values/" + id, entity = Await.result(Marshal(value).to[RequestEntity], 2 second)))
-        .onComplete {
+        .andThen {
           case Success(res) => sender() ! Marshal(res).to[HttpResponse]
           case Failure(_) => sender() ! "Something wrong"
         }
     case GetValue(id) =>
       Http().singleRequest(HttpRequest(method = HttpMethods.GET, uri = nodes(sharding(id.toInt)).uri + "/values/" + id))
-        .onComplete {
-          case Success(res) => sender() ! Marshal(res).to[HttpResponse]
+        .andThen {
+          case Success(res) => {
+            val outFile = new PrintWriter(new BufferedWriter(new FileWriter("tempfile.txt"))) //temp.txt need to if node shutdown recovery.txt will correct
+            outFile.println(Marshal(res).to[HttpResponse])
+            outFile.close
+            //sender() ! Marshal(res).to[HttpResponse]
+          }
           case Failure(_) => sender() ! "Something wrong"
         }
     case DeleteValue(id) =>
       Http().singleRequest(HttpRequest(method = HttpMethods.DELETE, uri = nodes(sharding(id.toInt)).uri + "/values/" + id))
-        .onComplete {
+        .andThen {
           case Success(res) => sender() ! Marshal(res).to[HttpResponse]
           case Failure(_) => sender() ! "Something wrong"
         }

@@ -1,0 +1,1 @@
+HttpResponse(200 OK,List(Server: akka-http/10.1.7, Date: Wed, 16 Jan 2019 15:53:48 GMT),HttpEntity.Strict(application/json,{"value":"othervalue"}),HttpProtocol(HTTP/1.1))

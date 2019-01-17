@@ -56,25 +56,20 @@ class DBValueRegistryActor extends Actor with ActorLogging {
   def receive: Receive = {
     case PutValue(id, value) =>
       Http().singleRequest(HttpRequest(method = HttpMethods.PUT, uri = nodes(sharding(id.toInt)).uri + "/values/" + id, entity = Await.result(Marshal(value).to[RequestEntity], 2 second)))
-        .andThen {
-          case Success(res) => sender() ! Marshal(res).to[HttpResponse]
+        .onComplete {
+          case Success(res) => sender() ! res
           case Failure(_) => sender() ! "Something wrong"
         }
     case GetValue(id) =>
       Http().singleRequest(HttpRequest(method = HttpMethods.GET, uri = nodes(sharding(id.toInt)).uri + "/values/" + id))
-        .andThen {
-          case Success(res) => {
-            val outFile = new PrintWriter(new BufferedWriter(new FileWriter("tempfile.txt"))) //temp.txt need to if node shutdown recovery.txt will correct
-            outFile.println(Marshal(res).to[HttpResponse])
-            outFile.close
-            //sender() ! Marshal(res).to[HttpResponse]
-          }
+        .onComplete {
+          case Success(res) => sender() ! res
           case Failure(_) => sender() ! "Something wrong"
         }
     case DeleteValue(id) =>
       Http().singleRequest(HttpRequest(method = HttpMethods.DELETE, uri = nodes(sharding(id.toInt)).uri + "/values/" + id))
-        .andThen {
-          case Success(res) => sender() ! Marshal(res).to[HttpResponse]
+        .onComplete {
+          case Success(res) => sender() ! res
           case Failure(_) => sender() ! "Something wrong"
         }
     case AddNode(serverUri) =>

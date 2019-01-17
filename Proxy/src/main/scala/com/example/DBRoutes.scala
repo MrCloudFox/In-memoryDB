@@ -26,7 +26,7 @@ trait DBRoutes extends JsonSupport {
 
   def dbvalueRegistryActor: ActorRef
 
-  implicit lazy val timeout = Timeout(10.seconds)
+  implicit lazy val timeout = Timeout(5.seconds)
 
   lazy val dbRoutes: Route =
     pathPrefix("proxy") {
@@ -46,19 +46,19 @@ trait DBRoutes extends JsonSupport {
         path(Segment) { id =>
           concat(
             get {
-              val response: HttpResponse = Await.result((dbvalueRegistryActor ? GetValue(id)).mapTo[HttpResponse], 5 second)
+              val response: Future[HttpResponse] = (dbvalueRegistryActor ? GetValue(id)).mapTo[HttpResponse]
               complete(response)
             },
 
             put {
               entity(as[Value]) { value =>
-                val valueCreated: HttpResponse = Await.result((dbvalueRegistryActor ? PutValue(id, value)).mapTo[HttpResponse], 5 second)
+                val valueCreated: Future[HttpResponse] = (dbvalueRegistryActor ? PutValue(id, value)).mapTo[HttpResponse]
                 complete(valueCreated)
               }
             },
 
             delete {
-              val valueDeleted: HttpResponse = Await.result((dbvalueRegistryActor ? DeleteValue(id)).mapTo[HttpResponse], 5 second)
+              val valueDeleted: Future[HttpResponse] = (dbvalueRegistryActor ? DeleteValue(id)).mapTo[HttpResponse]
               complete(valueDeleted)
             }
           )

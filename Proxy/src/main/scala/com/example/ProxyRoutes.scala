@@ -14,7 +14,7 @@ import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.http.scaladsl.server.directives.PathDirectives.path
 
 import scala.concurrent.{ Await, Future }
-import com.example.CommunicateDBActor._
+import com.example.CommunicationDBActor._
 import akka.pattern.ask
 import akka.util.Timeout
 

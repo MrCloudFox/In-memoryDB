@@ -15,7 +15,15 @@ object QuickstartServer extends App with ProxyRoutes {
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContext = system.dispatcher
 
-  val communicateDbActor: ActorRef = system.actorOf(CommunicateDBActor.props, "DBRegistryActor")
+  val typeOfReplication = TypeOfReplication.Sync // or Async
+
+  val master_slaves = new scala.collection.mutable.HashMap[ServerURI, List[ServerURI]] // Master URI -> Slave URL
+
+  master_slaves(new ServerURI("http://localhost:8081")) = List(new ServerURI("http://localhost:8082"), new ServerURI("http://localhost:8083"))
+  master_slaves(new ServerURI("http://localhost:8082")) = List(new ServerURI("http://localhost:8083"))
+  master_slaves(new ServerURI("http://localhost:8083")) = List(new ServerURI("http://localhost:8082"))
+
+  val communicateDbActor: ActorRef = system.actorOf(CommunicationDBActor.props, "DBRegistryActor")
 
   lazy val routes: Route = proxyRoutes
 

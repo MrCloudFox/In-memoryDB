@@ -34,24 +34,36 @@ object DBValueRegistryActor {
   final case object RecoveryDB
   final case object SynchronizeWithFile
   final case class Resharding(countOfServers: String)
+  final case class AddSlave(slaveUri: ServerURI)
 }
 
 class DBValueRegistryActor extends Actor with ActorLogging {
   import DBValueRegistryActor._
 
   var values = new scala.collection.mutable.HashMap[Int, Value].withDefaultValue(null)
+  var slaves = new scala.collection.mutable.ArrayBuffer[ServerURI]
 
   def receive: Receive = {
     case GetValues =>
       sender() ! Values(values.toSeq)
     case PutValue(id, value) =>
-      values(id) = value
-      sender() ! ActionPerformed(s"Value ${id} created.")
+      if (values(id) != value) {
+        values(id) = value
+        for (slave <- slaves) {
+          Http().singleRequest(HttpRequest(method = HttpMethods.PUT, uri = slave.uri + "/values/" + id, entity = Await.result(Marshal(value).to[RequestEntity], 2 second)))
+        }
+        sender() ! ActionPerformed(s"Value ${id} created.")
+      }
     case GetValue(id) =>
       sender() ! Option(values(id))
     case DeleteValue(id) =>
-      values -= id
-      sender() ! ActionPerformed(s"User ${id} deleted.")
+      if (values.contains(id)) {
+        values -= id
+        for (slave <- slaves) {
+          Http().singleRequest(HttpRequest(method = HttpMethods.DELETE, uri = slave.uri + "/values/" + id))
+        }
+        sender() ! ActionPerformed(s"User ${id} deleted.")
+      }
     case RecoveryDB =>
       for (
         (k, v) <- io.Source.fromFile("recovery.txt").getLines().filter(line => line.nonEmpty).map {
@@ -63,7 +75,7 @@ class DBValueRegistryActor extends Actor with ActorLogging {
         values(k.toInt) = v
       }
     case SynchronizeWithFile =>
-      val outFile = new PrintWriter(new BufferedWriter(new FileWriter("temp.txt"))) //temp.txt need to if node shutdown recovery.txt will correct
+      val outFile = new PrintWriter(new BufferedWriter(new FileWriter("temp.txt")))
       for ((k, v) <- values) outFile.println(k + "->" + v.value)
       outFile.close
       implicit def toPath(filename: String) = get(filename)
@@ -74,7 +86,7 @@ class DBValueRegistryActor extends Actor with ActorLogging {
       while (countOfServers > countOfServersWithNum.split("=>")(1).toInt) {
         for ((k, v) <- values) {
           if (k % countOfServers == 0) {
-            Http().singleRequest(HttpRequest(method = HttpMethods.PUT, uri = proxy + "/proxy/" + k, entity = Await.result(Marshal(v).to[RequestEntity], 10 second)))
+            Http().singleRequest(HttpRequest(method = HttpMethods.PUT, uri = proxy + "/proxy/" + k, entity = Await.result(Marshal(v).to[RequestEntity], 2 second)))
               .onComplete {
                 case Success(res) => log.info("Send Value: " + k) //sender() ! res
                 case Failure(_) => sender() ! "Something wrong"
@@ -84,6 +96,7 @@ class DBValueRegistryActor extends Actor with ActorLogging {
         }
         countOfServers -= 1
       }
-
+    case AddSlave(slaveUri: ServerURI) =>
+      slaves += slaveUri
   }
 }

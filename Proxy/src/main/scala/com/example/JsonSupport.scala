@@ -1,6 +1,6 @@
 package com.example
 
-import com.example.CommunicateDBActor.ActionPerformed
+import com.example.CommunicationDBActor.ActionPerformed
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import spray.json.DefaultJsonProtocol
 

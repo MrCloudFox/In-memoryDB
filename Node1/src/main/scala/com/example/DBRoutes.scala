@@ -35,6 +35,18 @@ trait DBRoutes extends JsonSupport {
   lazy val dbRoutes: Route =
     pathPrefix("values") {
       concat(
+        pathPrefix("slave") {
+          concat(
+            put {
+              entity(as[ServerURI]) { uri =>
+                dbvalueRegistryActor ! AddSlave(uri)
+                log.info("Get new slave: " + uri.uri)
+                complete(StatusCodes.OK)
+              }
+            }
+          )
+        },
+
         pathPrefix("resharding") {
           concat(
             path(Segment) { countOfServersWithNum =>

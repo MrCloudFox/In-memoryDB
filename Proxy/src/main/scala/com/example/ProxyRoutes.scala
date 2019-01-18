@@ -14,28 +14,28 @@ import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.http.scaladsl.server.directives.PathDirectives.path
 
 import scala.concurrent.{ Await, Future }
-import com.example.DBValueRegistryActor._
+import com.example.CommunicateDBActor._
 import akka.pattern.ask
 import akka.util.Timeout
 
-trait DBRoutes extends JsonSupport {
+trait ProxyRoutes extends JsonSupport {
 
   implicit def system: ActorSystem
 
-  lazy val log = Logging(system, classOf[DBRoutes])
+  lazy val log = Logging(system, classOf[ProxyRoutes])
 
-  def dbvalueRegistryActor: ActorRef
+  def communicateDbActor: ActorRef
 
   implicit lazy val timeout = Timeout(5.seconds)
 
-  lazy val dbRoutes: Route =
+  lazy val proxyRoutes: Route =
     pathPrefix("proxy") {
       concat(
         pathPrefix("newnode") {
           concat(
             put {
               entity(as[ServerURI]) { serverUri =>
-                dbvalueRegistryActor ! AddNode(serverUri)
+                communicateDbActor ! AddNode(serverUri)
                 log.info("New node added! -> " + serverUri.uri)
                 complete(StatusCodes.Created)
               }
@@ -46,19 +46,19 @@ trait DBRoutes extends JsonSupport {
         path(Segment) { id =>
           concat(
             get {
-              val response: Future[HttpResponse] = (dbvalueRegistryActor ? GetValue(id)).mapTo[HttpResponse]
+              val response: Future[HttpResponse] = (communicateDbActor ? GetValue(id)).mapTo[HttpResponse]
               complete(response)
             },
 
             put {
               entity(as[Value]) { value =>
-                val valueCreated: Future[HttpResponse] = (dbvalueRegistryActor ? PutValue(id, value)).mapTo[HttpResponse]
+                val valueCreated: Future[HttpResponse] = (communicateDbActor ? PutValue(id, value)).mapTo[HttpResponse]
                 complete(valueCreated)
               }
             },
 
             delete {
-              val valueDeleted: Future[HttpResponse] = (dbvalueRegistryActor ? DeleteValue(id)).mapTo[HttpResponse]
+              val valueDeleted: Future[HttpResponse] = (communicateDbActor ? DeleteValue(id)).mapTo[HttpResponse]
               complete(valueDeleted)
             }
           )

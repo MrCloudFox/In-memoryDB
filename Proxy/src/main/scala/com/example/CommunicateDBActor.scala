@@ -18,8 +18,8 @@ final case class Value(value: String)
 final case class Values(values: Seq[(String, Value)])
 final case class ServerURI(uri: String)
 
-object DBValueRegistryActor {
-  def props: Props = Props[DBValueRegistryActor]
+object CommunicateDBActor {
+  def props: Props = Props[CommunicateDBActor]
 
   final case class ActionPerformed(description: String)
   final case class PutValue(id: String, value: Value)
@@ -28,8 +28,8 @@ object DBValueRegistryActor {
   final case class AddNode(serverUri: ServerURI)
 }
 
-class DBValueRegistryActor extends Actor with ActorLogging {
-  import DBValueRegistryActor._
+class CommunicateDBActor extends Actor with ActorLogging {
+  import CommunicateDBActor._
 
   implicit lazy val timeout = Timeout(5.seconds)
 
@@ -55,22 +55,25 @@ class DBValueRegistryActor extends Actor with ActorLogging {
 
   def receive: Receive = {
     case PutValue(id, value) =>
+      val actorRef = sender()
       Http().singleRequest(HttpRequest(method = HttpMethods.PUT, uri = nodes(sharding(id.toInt)).uri + "/values/" + id, entity = Await.result(Marshal(value).to[RequestEntity], 2 second)))
         .onComplete {
-          case Success(res) => sender() ! res
-          case Failure(_) => sender() ! "Something wrong"
+          case Success(res) => actorRef ! res
+          case Failure(_) => actorRef ! "Something wrong"
         }
     case GetValue(id) =>
+      val actorRef = sender()
       Http().singleRequest(HttpRequest(method = HttpMethods.GET, uri = nodes(sharding(id.toInt)).uri + "/values/" + id))
         .onComplete {
-          case Success(res) => sender() ! res
-          case Failure(_) => sender() ! "Something wrong"
+          case Success(res) => actorRef ! res
+          case Failure(_) => actorRef ! "Something wrong"
         }
     case DeleteValue(id) =>
+      val actorRef = sender()
       Http().singleRequest(HttpRequest(method = HttpMethods.DELETE, uri = nodes(sharding(id.toInt)).uri + "/values/" + id))
         .onComplete {
-          case Success(res) => sender() ! res
-          case Failure(_) => sender() ! "Something wrong"
+          case Success(res) => actorRef ! res
+          case Failure(_) => actorRef ! "Something wrong"
         }
     case AddNode(serverUri) =>
       countOfServers += 1

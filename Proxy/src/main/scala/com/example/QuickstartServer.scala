@@ -9,15 +9,15 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 
-object QuickstartServer extends App with DBRoutes {
+object QuickstartServer extends App with ProxyRoutes {
 
   implicit val system: ActorSystem = ActorSystem("helloAkkaHttpServer")
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContext = system.dispatcher
 
-  val dbvalueRegistryActor: ActorRef = system.actorOf(DBValueRegistryActor.props, "DBRegistryActor")
+  val communicateDbActor: ActorRef = system.actorOf(CommunicateDBActor.props, "DBRegistryActor")
 
-  lazy val routes: Route = dbRoutes
+  lazy val routes: Route = proxyRoutes
 
   val serverBinding: Future[Http.ServerBinding] = Http().bindAndHandle(routes, "localhost", 8080)
 

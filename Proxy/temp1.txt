@@ -1,1 +1,0 @@
-HttpResponse(200 OK,List(Server: akka-http/10.1.7, Date: Thu, 17 Jan 2019 09:27:15 GMT),HttpEntity.Strict(application/json,{"value":"stresstesting"}),HttpProtocol(HTTP/1.1))
